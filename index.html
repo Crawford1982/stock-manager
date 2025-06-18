@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jimmy's Visual Stock Manager</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='8' y='28' width='48' height='8' rx='2' fill='%23bbb'/%3E%3Cpolygon points='32,8 40,32 28,32 36,56' fill='%23FFD600' stroke='%23FFA000' stroke-width='2'/%3E%3Cpolygon points='24,40 32,56 40,40' fill='%2300C853'/%3E%3Cpolygon points='24,24 32,8 40,24' fill='%23D50000'/%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:hover::before {
+            width: 100%;
+            height: 100%;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+
+        .mode-btn {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .clear-btn {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+            color: white;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .category-select {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: #222 !important;
+            color: #fff !important;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .category-select:hover {
+            background: #333 !important;
+            border-color: #4CAF50;
+        }
+
+        select, select option {
+            background: #222 !important;
+            color: #fff !important;
+        }
+
+        select:focus, select:hover {
+            background: #333 !important;
+            color: #fff !important;
+        }
+
+        /* Stats Panel */
+        .stats {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+        }
+
+        .stat {
+            background: rgba(255,255,255,0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .stat:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            opacity: 0.7;
+            margin-right: 4px;
+        }
+
+        .stat-value {
+            font-weight: bold;
+        }
+
+        /* Workspace */
+        .workspace {
+            position: relative;
+            width: calc(100vw - 320px);
+            height: 100vh;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #0a0a0a 100%);
+            overflow: hidden;
+            cursor: grab;
+            margin-left: 320px;
+        }
+
+        .workspace.dragging {
+            cursor: grabbing;
+        }
+
+        .workspace.add-mode {
+            cursor: crosshair;
+        }
+
+        .background-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            user-select: none;
+            pointer-events: none;
+            opacity: 0.9;
+            transform-origin: 0 0;
+        }
+
+        /* Stock Markers (Pins) */
+        .stock-marker {
+            position: absolute;
+            width: 32px;
+            height: 48px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+            transform-origin: bottom center;
+            z-index: 10;
+        }
+
+        .pin-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+        }
+
+        .pin-shape {
+            width: 32px;
+            height: 32px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            position: absolute;
+            top: 0;
+            left: 0;
+            border: 2px solid rgba(255,255,255,0.9);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .pin-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        /* Category Colors */
+        .stock-marker.wet-press .pin-shape {
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+        }
+
+        .stock-marker.block-plant .pin-shape {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+        }
+
+        .stock-marker.brought-in .pin-shape {
+            background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+        }
+
+        /* Stock Status */
+        .stock-marker.low-stock .pin-shape {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%) !important;
+            animation: warning-pulse 2s infinite;
+        }
+
+        .stock-marker.out-of-stock .pin-shape {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%) !important;
+            animation: danger-pulse 1s infinite;
+        }
+
+        @keyframes warning-pulse {
+            0%, 100% { transform: rotate(-45deg) scale(1); }
+            50% { transform: rotate(-45deg) scale(1.1); }
+        }
+
+        @keyframes danger-pulse {
+            0%, 100% { transform: rotate(-45deg) scale(1); opacity: 1; }
+            50% { transform: rotate(-45deg) scale(1.15); opacity: 0.8; }
+        }
+
+        .stock-marker:hover {
+            transform: scale(1.2);
+            z-index: 100;
+        }
+
+        .stock-marker:hover .pin-shape {
+            border-color: white;
+            box-shadow: 0 0 20px rgba(255,255,255,0.5), inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Tooltip */
+        .pin-tooltip {
+            position: absolute;
+            bottom: 52px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+        }
+
+        .stock-marker.tooltip-locked .pin-tooltip {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(-5px);
+        }
+
+        .stock-marker:hover .pin-tooltip {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(-5px);
+        }
+
+        .tooltip-header {
+            font-weight: bold;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .tooltip-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .tooltip-controls {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .tooltip-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            transition: all 0.2s ease;
+            min-width: 32px;
+        }
+
+        .tooltip-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .btn-add { background: #4CAF50; }
+        .btn-subtract { background: #FF9800; }
+        .btn-delete { background: #f44336; }
+
+        /* Add Item Form */
+        .add-item-form {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 30px;
+            border-radius: 16px;
+            border: 2px solid #4CAF50;
+            z-index: 1001;
+            display: none;
+            min-width: 400px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .add-item-form.show {
+            display: block;
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .form-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #bbb;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background: rgba(255,255,255,0.15);
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .form-btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+            color: white;
+        }
+
+        .btn-cancel {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Instructions */
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            max-width: 320px;
+            z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #4CAF50;
+        }
+
+        .instructions ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .instructions li {
+            margin-bottom: 6px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .instructions li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #4CAF50;
+        }
+
+        /* Zoom Controls */
+        .zoom-controls {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .zoom-btn {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255,255,255,0.1);
+            transform: scale(1.1);
+        }
+
+        /* Export Button */
+        .export-btn {
+            background: linear-gradient(135deg, #673AB7 0%, #512DA8 100%);
+            color: white;
+        }
+
+        /* Overlay for dimming */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 999;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.show {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                padding: 10px;
+            }
+
+            .controls {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .stats {
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 5px;
+            }
+
+            .instructions {
+                display: none;
+            }
+
+            .add-item-form {
+                min-width: 90%;
+                padding: 20px;
+            }
+
+            .zoom-controls {
+                top: auto;
+                bottom: 20px;
+                right: 20px;
+            }
+        }
+
+        /* Side panel */
+        .side-panel {
+            position: fixed;
+            top: 70px;
+            left: 0;
+            bottom: 0;
+            width: 320px;
+            background: rgba(0,0,0,0.92);
+            padding: 24px 16px 16px 16px;
+            z-index: 900;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255,255,255,0.07);
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        .top-products-category {
+            margin-bottom: 12px;
+        }
+        .top-products-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+        }
+        .top-products-header.wet { color: #4CAF50; }
+        .top-products-header.block { color: #2196F3; }
+        .top-products-header.brought { color: #9C27B0; }
+        .top-products-category ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .top-products-category li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 15px;
+        }
+        .top-products-category li:last-child {
+            border-bottom: none;
+        }
+        .top-products-category .product-qty {
+            font-weight: bold;
+            color: #fff;
+            background: rgba(76,175,80,0.15);
+            border-radius: 8px;
+            padding: 2px 10px;
+            min-width: 36px;
+            text-align: right;
+        }
+        .top-products-header.block + ul .product-qty {
+            background: rgba(33,150,243,0.15);
+        }
+        .top-products-header.brought + ul .product-qty {
+            background: rgba(156,39,176,0.15);
+        }
+        @media (max-width: 900px) {
+            .side-panel {
+                display: none;
+            }
+        }
+
+        /* Right panel for financials */
+        .right-panel {
+            position: fixed;
+            top: 70px;
+            right: 0;
+            bottom: 0;
+            width: 340px;
+            background: rgba(0,0,0,0.92);
+            padding: 24px 16px 16px 16px;
+            z-index: 900;
+            overflow-y: auto;
+            border-left: 1px solid rgba(255,255,255,0.07);
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        .fin-section {
+            margin-bottom: 18px;
+        }
+        .fin-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            color: #4CAF50;
+        }
+        .fin-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .fin-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .fin-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 15px;
+        }
+        .fin-list li:last-child {
+            border-bottom: none;
+        }
+        .fin-list .product-qty {
+            font-weight: bold;
+            color: #fff;
+            background: rgba(76,175,80,0.15);
+            border-radius: 8px;
+            padding: 2px 10px;
+            min-width: 36px;
+            text-align: right;
+        }
+        .fin-list .product-value {
+            font-weight: bold;
+            color: #4CAF50;
+            min-width: 80px;
+            text-align: right;
+        }
+        @media (max-width: 1200px) {
+            .right-panel {
+                display: none;
+            }
+            .workspace {
+                width: 100vw;
+                margin-left: 0;
+            }
+            .side-panel {
+                display: none;
+            }
+        }
+        .workspace {
+            width: calc(100vw - 320px - 340px);
+            margin-left: 320px;
+        }
+
+        /* Financials logic */
+        .financials-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #2196F3 100%);
+            color: #fff;
+        }
+        .financials-btn:hover {
+            background: linear-gradient(135deg, #2196F3 0%, #4CAF50 100%);
+        }
+
+        .stock-marker.missing-cost .pin-shape {
+            border: 2px solid #f44336 !important;
+            box-shadow: 0 0 12px 2px #f44336 !important;
+        }
+
+        .marquee-bar {
+            width: 100vw;
+            background: #181818;
+            border-bottom: 1px solid #4CAF50;
+            margin-bottom: 0;
+            z-index: 999;
+            overflow: hidden;
+            height: 32px;
+            position: relative;
+        }
+        .marquee-text {
+            position: absolute;
+            white-space: nowrap;
+            font-size: 18px;
+            color: #4CAF50;
+            font-weight: bold;
+            letter-spacing: 1px;
+            top: 50%;
+            left: 100vw;
+            transform: translateY(-50%);
+            animation: marquee-scroll 12s linear infinite;
+        }
+        @keyframes marquee-scroll {
+            0% { left: 100vw; }
+            100% { left: -60vw; }
+        }
+    </style>
+</head>
+<body>
+    <div class="marquee-bar">
+        <div class="marquee-text">Jimmy's Visual Stock Manager</div>
+    </div>
+    <div class="header">
+        <div class="title">
+            <span>📍</span>
+            <span>Visual Stock Manager</span>
+        </div>
+        <div class="controls">
+            <button class="btn upload-btn" onclick="document.getElementById('fileInput').click()">
+                📁 Upload Site Map
+            </button>
+            <input type="file" id="fileInput" accept="image/*" onchange="loadBackgroundImage(event)">
+            <button class="btn mode-btn" id="modeBtn" onclick="toggleMode()">
+                ➕ Add Pin Mode
+            </button>
+            <input id="pinSearch" type="text" placeholder="Search pins..." style="padding:7px 16px;border-radius:8px;background:#222;color:#fff;font-size:15px;border:1px solid #4CAF50;min-width:200px;" />
+            <select class="category-select" id="categoryFilter" onchange="filterByCategory()">
+                <option value="all">🔍 All Categories</option>
+                <option value="wet-press">🟢 Wet Press</option>
+                <option value="block-plant">🔵 Block Plant</option>
+                <option value="brought-in">🟣 Brought In</option>
+            </select>
+            <button class="btn export-btn" onclick="exportData()">
+                📊 Export Data
+            </button>
+            <button class="btn clear-btn" onclick="clearAllItems()">
+                🗑️ Clear All
+            </button>
+            <button class="btn financials-btn" onclick="window.location.href='financials.html'">
+                💷 Financials
+            </button>
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-label">Total:</span>
+                <span class="stat-value" id="totalItems">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">🟢 Wet:</span>
+                <span class="stat-value" id="wetPressCount">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">🔵 Block:</span>
+                <span class="stat-value" id="blockPlantCount">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">🟣 Brought:</span>
+                <span class="stat-value" id="broughtInCount">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="workspace" id="workspace">
+        <img class="background-image" id="backgroundImage" src="sitemap.png" style="display: block;">
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <div class="add-item-form" id="addItemForm">
+        <div class="form-header">📍 Add Stock Pin</div>
+        <div class="form-group">
+            <label>Category:</label>
+            <select id="itemCategory" onchange="updateProductDropdown()">
+                <option value="wet-press">🟢 Wet Press Products</option>
+                <option value="block-plant">🔵 Block Plant Products</option>
+                <option value="brought-in">🟣 Brought In Products</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Product:</label>
+            <select id="itemProduct">
+                <option value="">Select a product...</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Current Quantity:</label>
+            <input type="number" id="itemQuantity" placeholder="Enter quantity" min="0" value="0">
+        </div>
+        <div class="form-buttons">
+            <button class="form-btn btn-cancel" onclick="hideAddForm()">Cancel</button>
+            <button class="form-btn btn-save" onclick="saveNewItem()">Save Pin</button>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <h3>Quick Guide</h3>
+        <ul>
+            <li>Upload your site map image</li>
+            <li>Click "Add Pin Mode" to start</li>
+            <li>Click anywhere to drop a stock pin</li>
+            <li>Hover over pins to manage stock</li>
+            <li>Pan: Click & drag background</li>
+            <li>Zoom: Use controls or mouse wheel</li>
+        </ul>
+    </div>
+
+    <!-- Side panel for top products -->
+    <div class="side-panel" id="sidePanel">
+        <div class="top-products-category">
+            <div class="top-products-header wet">🟢 Top Wet Press</div>
+            <ul id="topWetPress"></ul>
+        </div>
+        <div class="top-products-category">
+            <div class="top-products-header block">🔵 Top Block Plant</div>
+            <ul id="topBlockPlant"></ul>
+        </div>
+        <div class="top-products-category">
+            <div class="top-products-header brought">🟣 Top Brought In</div>
+            <ul id="topBroughtIn"></ul>
+        </div>
+    </div>
+
+    <!-- Right panel for financials -->
+    <div class="right-panel" id="rightPanel">
+        <div class="fin-section">
+            <div class="fin-header">💷 Site Stock Value</div>
+            <div class="fin-value" id="siteStockValue">£0.00</div>
+        </div>
+        <div class="fin-section">
+            <div class="fin-header">🏆 Top 6 by Value</div>
+            <ul class="fin-list" id="topByValue"></ul>
+        </div>
+        <div class="fin-section">
+            <div class="fin-header">🕑 Recent Stock Movements</div>
+            <ul class="fin-list" id="recentMovements"></ul>
+        </div>
+        <div class="fin-section debug-section">
+            <div class="fin-header" style="color:#f44336;">🛠️ Debug: Product Name Matching</div>
+            <div style="font-size:13px; color:#bbb;">Products in use on map (red = missing/zero cost):</div>
+            <ul class="fin-list" id="debugMapProducts"></ul>
+            <div style="font-size:13px; color:#bbb; margin-top:10px;">Products in cost table:</div>
+            <ul class="fin-list" id="debugCostProducts"></ul>
+        </div>
+    </div>
+
+    <script>
+        let stockItems = [];
+        let isAddMode = false;
+        let addingAtPosition = null;
+
+        // Product catalog
+        const productLists = {
+            'wet-press': [
+                'Flat Top Edging 50x200x914',
+                'Standard 900x600x50 Natural',
+                'Standard 600x600x50 Natural',
+                'Standard 450x450x50 Natural Square Edge',
+                'Standard 450x450x50 Natural Chamfered',
+                '125x255 Half Battered Kerb',
+                '125x255 Bullnosed Kerb',
+                '125x150 Bullnosed Kerb',
+                'Pendle 450x450x32 Buff',
+                'Terralis 450x450x32 Natural',
+                'Terralis 450x450x32 Buff',
+                'Pendle 600x600x38 Natural',
+                'Pendle 600x600x38 Buff',
+                'Terralis 600x600x38 Natural',
+                'Terralis 600x600x38 Buff',
+                'Richmond 450x450x32 Natural',
+                'Richmond 450x450x32 Buff',
+                'Richmond 600x600x38 Natural',
+                'Richmond 600x600x38 Buff',
+                'Blister 400x400x50 Buff',
+                'Blister 400x400x50 Red',
+                'Blister 400x400x65 Natural',
+                'Blister 400x400x65 Buff',
+                'Blister 400x400x65 Red',
+                'Ryton Riven Grey 450x450x32',
+                'Ryton Riven Buff 450x450x32',
+                'Stretton Smth Grey 450x450x32',
+                'Stretton Smth Buff 450x450x32'
+            ],
+            'block-plant': [
+                'Round Top Edging 50x200x900',
+                'Round Top Edging 75x230x900',
+                'Pavedrive Natural 50mm',
+                'Pavedrive Buff 50mm',
+                'Pavedrive Charcoal 50mm',
+                'Pavedrive Brindle 50mm',
+                'Pavedrive BOchre 50mm',
+                'Pavedrive Forest Blend 50mm',
+                'Avenu Charcoal Small 50mm',
+                'Avenu Charcoal Med 50mm',
+                'Avenu Charcoal Large 50mm',
+                'Avenu BOchre Small 50mm',
+                'Avenu BOchre Medium 50mm',
+                'Avenu BOchre Large 50mm',
+                'Avenu Forest Blend Sm 50mm',
+                'Avenu Forest Blend Med 50mm',
+                'Avenu Forest Blend Lge 50mm',
+                'Standard CBP 200x100x50 Brindle',
+                'Standard CBP 200x100x50 Charcoal',
+                'Standard CBP 200x100x50 Bracken',
+                'Standard CBP 200x100x50 Natural',
+                'Savanna 240x160x50 Traditional',
+                'Savanna 160x160x50 Traditional',
+                'Savanna 120x160x50 Traditional',
+                'Savanna 240x160x50 Pennant Grey',
+                'Savanna 160x160x50 Pennant Grey',
+                'Savanna 120x160x50 Pennant Grey',
+                'Savanna 240x160x50 Autumn',
+                'Savanna 160x160x50 Autumn',
+                'Savanna 120x160x50 Autumn',
+                'Savanna 240x160x50 Charcoal',
+                'Savanna 160x160x50 Charcoal',
+                'Savanna 120x160x50 Charcoal',
+                'Keyblok 200x100x60 Natural',
+                'Keyblok 200x100x60 Charcoal',
+                'Keyblok 200x100x60 Buff',
+                'Keyblok 200x100x60 Brindle',
+                'Keyblok 200x100x60 Burnt Ochre',
+                'Keyblok 200x100x60 Bracken',
+                'Keyblok Pencil Edge 200x100x60 Charcoal',
+                'Priora 200x100x60 Natural',
+                'Priora 200x100x60 Charcoal',
+                'Priora 200x100x60 Buff',
+                'Priora 200x100x60 Brindle',
+                'Priora 200x100x60 Burnt Ochre',
+                'Priora 200x100x60 Bracken',
+                'Keyblok 200x100x80 Natural',
+                'Keyblok 200x100x80 Charcoal',
+                'Keyblok 200x100x80 Buff',
+                'Keyblok 200x100x80 Brindle',
+                'Keyblok 200x100x80 Burnt Ochre',
+                'Keyblok 200x100x80 Bracken',
+                'Priora 200x100x80 Natural',
+                'Priora 200x100x80 Charcoal',
+                'Priora 200x100x80 Buff',
+                'Priora 200x100x80 Brindle',
+                'Priora 200x100x80 Burnt Ochre',
+                'Priora 200x100x80 Bracken'
+            ],
+            'brought-in': [
+                'Custom Brought-In Item',
+                'Special Order Product',
+                'Third-Party Stock'
+            ]
+        };
+
+        // Initialize
+        function init() {
+            loadData();
+            updateProductDropdown();
+            setupEventListeners();
+        }
+
+        // Load saved data
+        function loadData() {
+            const saved = localStorage.getItem('visualStockData');
+            if (saved) {
+                stockItems = JSON.parse(saved);
+                renderMarkers();
+                updateStats();
+            }
+
+            const savedImage = localStorage.getItem('backgroundImageData');
+            if (savedImage) {
+                const img = document.getElementById('backgroundImage');
+                img.src = savedImage;
+                img.style.display = 'block';
+            }
+        }
+
+        // Save data
+        function saveData() {
+            localStorage.setItem('visualStockData', JSON.stringify(stockItems));
+        }
+
+        // Export data
+        function exportData() {
+            const dataStr = JSON.stringify(stockItems, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `stock_data_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Load background image
+        function loadBackgroundImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('backgroundImage');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    localStorage.setItem('backgroundImageData', e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Toggle add mode
+        function toggleMode() {
+            isAddMode = !isAddMode;
+            const btn = document.getElementById('modeBtn');
+            const workspace = document.getElementById('workspace');
+            
+            if (isAddMode) {
+                btn.textContent = '✓ Pin Mode Active';
+                btn.classList.add('active');
+                workspace.classList.add('add-mode');
+            } else {
+                btn.textContent = '➕ Add Pin Mode';
+                btn.classList.remove('active');
+                workspace.classList.remove('add-mode');
+            }
+        }
+
+        // Update product dropdown
+        function updateProductDropdown() {
+            const category = document.getElementById('itemCategory').value;
+            const productSelect = document.getElementById('itemProduct');
+            
+            productSelect.innerHTML = '<option value="">Select a product...</option>';
+            
+            if (productLists[category]) {
+                productLists[category].forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product;
+                    option.textContent = product;
+                    productSelect.appendChild(option);
+                });
+            }
+        }
+
+        // Show add form with animation
+        function showAddForm(x, y) {
+            addingAtPosition = { x, y };
+            const form = document.getElementById('addItemForm');
+            const overlay = document.getElementById('overlay');
+            overlay.classList.add('show');
+            form.classList.add('show');
+            document.getElementById('itemProduct').value = '';
+            document.getElementById('itemQuantity').value = '0';
+            setTimeout(() => {
+                document.getElementById('itemProduct').focus();
+            }, 300);
+        }
+
+        // Hide add form
+        function hideAddForm() {
+            const form = document.getElementById('addItemForm');
+            const overlay = document.getElementById('overlay');
+            
+            form.classList.remove('show');
+            overlay.classList.remove('show');
+            
+            setTimeout(() => {
+                addingAtPosition = null;
+            }, 300);
+        }
+
+        // Save new item
+        function saveNewItem() {
+            const selectedProduct = document.getElementById('itemProduct').value;
+            const quantity = parseInt(document.getElementById('itemQuantity').value) || 0;
+            const category = document.getElementById('itemCategory').value;
+
+            if (!selectedProduct) {
+                alert('Please select a product');
+                return;
+            }
+
+            stockItems.push({
+                id: Date.now(),
+                name: selectedProduct,
+                quantity: quantity,
+                category: category,
+                x: addingAtPosition.x,
+                y: addingAtPosition.y
+            });
+
+            hideAddForm();
+            saveData();
+            renderMarkers();
+            updateStats();
+            
+            // Exit add mode after adding
+            if (isAddMode) {
+                toggleMode();
+            }
+        }
+
+        // Render all markers
+        function renderMarkers() {
+            document.querySelectorAll('.stock-marker').forEach(marker => marker.remove());
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const search = document.getElementById('pinSearch') ? document.getElementById('pinSearch').value.trim().toLowerCase() : '';
+            let filteredItems = stockItems;
+            if (categoryFilter !== 'all') {
+                filteredItems = filteredItems.filter(item => item.category === categoryFilter);
+            }
+            if (search) {
+                filteredItems = filteredItems.filter(item => item.name.toLowerCase().includes(search));
+            }
+            const img = document.getElementById('backgroundImage');
+            const workspace = document.getElementById('workspace');
+            const imgRect = img.getBoundingClientRect();
+            // Remove any previous tooltip-locked state
+            document.querySelectorAll('.stock-marker.tooltip-locked').forEach(m => m.classList.remove('tooltip-locked'));
+            filteredItems.forEach(item => {
+                const marker = document.createElement('div');
+                marker.className = `stock-marker ${item.category || 'wet-press'}`;
+                // Highlight pins with missing/zero cost
+                const cost = getProductCost(item.name);
+                if (cost === undefined || cost === 0) {
+                    marker.classList.add('missing-cost');
+                }
+                // Calculate position in px based on percentage
+                const left = (item.x / 100) * img.width;
+                const top = (item.y / 100) * img.height;
+                marker.style.left = left + 'px';
+                marker.style.top = top + 'px';
+                if (item.quantity === 0) {
+                    marker.classList.add('out-of-stock');
+                } else if (item.quantity <= (item.minLevel || 0)) {
+                    marker.classList.add('low-stock');
+                }
+                marker.innerHTML = `
+                    <div class="pin-container">
+                        <div class="pin-shape">
+                            <div class="pin-inner">${item.quantity}</div>
+                        </div>
+                        <div class="pin-tooltip">
+                            <div class="tooltip-header">${item.name}</div>
+                            <div class="tooltip-info">
+                                <span>Current Stock:</span>
+                                <span>${item.quantity}</span>
+                            </div>
+                            <div class="tooltip-info">
+                                <span>Status:</span>
+                                <span>${getStockStatus(item)}</span>
+                            </div>
+                            <div class="tooltip-controls">
+                                <button class="tooltip-btn btn-delete" onclick="event.stopPropagation(); deleteItem(${item.id})">🗑</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                marker.style.transform = '';
+                marker.style.transformOrigin = 'bottom center';
+                // Add click event to lock/unlock tooltip
+                marker.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Remove lock from all other markers
+                    document.querySelectorAll('.stock-marker.tooltip-locked').forEach(m => {
+                        if (m !== marker) m.classList.remove('tooltip-locked');
+                    });
+                    // Toggle lock on this marker
+                    marker.classList.toggle('tooltip-locked');
+                });
+                // Make pins draggable
+                let isDraggingPin = false;
+                let dragOffsetX = 0;
+                let dragOffsetY = 0;
+                marker.addEventListener('mousedown', function(e) {
+                    if (e.button !== 0) return;
+                    isDraggingPin = true;
+                    dragOffsetX = e.offsetX;
+                    dragOffsetY = e.offsetY;
+                    marker.style.zIndex = 9999;
+                    document.body.style.userSelect = 'none';
+                });
+                document.addEventListener('mousemove', function(e) {
+                    if (!isDraggingPin) return;
+                    const rect = img.getBoundingClientRect();
+                    let x = e.clientX - rect.left - dragOffsetX;
+                    let y = e.clientY - rect.top - dragOffsetY;
+                    // Clamp to image bounds
+                    x = Math.max(0, Math.min(x, img.width));
+                    y = Math.max(0, Math.min(y, img.height));
+                    marker.style.left = x + 'px';
+                    marker.style.top = y + 'px';
+                });
+                document.addEventListener('mouseup', function(e) {
+                    if (!isDraggingPin) return;
+                    isDraggingPin = false;
+                    marker.style.zIndex = '';
+                    document.body.style.userSelect = '';
+                    // Save new position as percentage
+                    const rect = img.getBoundingClientRect();
+                    let x = parseFloat(marker.style.left);
+                    let y = parseFloat(marker.style.top);
+                    x = (x / img.width) * 100;
+                    y = (y / img.height) * 100;
+                    // Update the stock item
+                    const stockItem = stockItems.find(i => i.id === item.id);
+                    if (stockItem) {
+                        stockItem.x = x;
+                        stockItem.y = y;
+                        saveData();
+                    }
+                });
+                workspace.appendChild(marker);
+            });
+        }
+
+        // Get stock status text
+        function getStockStatus(item) {
+            if (item.quantity === 0) return '❌ Out of Stock';
+            return '✅ In Stock';
+        }
+
+        // Update quantity
+        function updateQuantity(id, change) {
+            const item = stockItems.find(item => item.id === id);
+            if (item) {
+                logMovement('update', item, change);
+            }
+            origUpdateQuantity.apply(this, arguments);
+            updateFinancialsPanel();
+        }
+
+        // Delete item
+        function deleteItem(id) {
+            if (confirm('Delete this stock pin?')) {
+                stockItems = stockItems.filter(item => item.id !== id);
+                saveData();
+                renderMarkers();
+                updateStats();
+            }
+        }
+
+        // Clear all items
+        function clearAllItems() {
+            const confirmText = prompt('⚠️ WARNING: This will delete ALL stock pins!\n\nType "DELETE ALL" to confirm:');
+            if (confirmText === 'DELETE ALL') {
+                stockItems = [];
+                saveData();
+                renderMarkers();
+                updateStats();
+                alert('All stock pins have been cleared.');
+            }
+        }
+
+        // Filter by category or search
+        function filterByCategory() {
+            renderMarkers();
+            updateStats(); // Also update left panel
+        }
+        if (document.getElementById('pinSearch')) {
+            document.getElementById('pinSearch').addEventListener('input', function() {
+                renderMarkers();
+                updateStats();
+            });
+        }
+
+        // Update statistics
+        function updateStats() {
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const search = document.getElementById('pinSearch') ? document.getElementById('pinSearch').value.trim().toLowerCase() : '';
+            let filteredItems = stockItems;
+            if (categoryFilter !== 'all') {
+                filteredItems = filteredItems.filter(item => item.category === categoryFilter);
+            }
+            if (search) {
+                filteredItems = filteredItems.filter(item => item.name.toLowerCase().includes(search));
+            }
+            const total = filteredItems.length;
+            const wetPress = filteredItems.filter(item => item.category === 'wet-press').length;
+            const blockPlant = filteredItems.filter(item => item.category === 'block-plant').length;
+            const broughtIn = filteredItems.filter(item => item.category === 'brought-in').length;
+
+            document.getElementById('totalItems').textContent = total;
+            document.getElementById('wetPressCount').textContent = wetPress;
+            document.getElementById('blockPlantCount').textContent = blockPlant;
+            document.getElementById('broughtInCount').textContent = broughtIn;
+
+            // Update top products panel (filtered)
+            function getTopProducts(category) {
+                return filteredItems
+                    .filter(item => item.category === category)
+                    .sort((a, b) => b.quantity - a.quantity)
+                    .slice(0, 6);
+            }
+            const wetList = document.getElementById('topWetPress');
+            const blockList = document.getElementById('topBlockPlant');
+            const broughtList = document.getElementById('topBroughtIn');
+            if (wetList && blockList && broughtList) {
+                wetList.innerHTML = '';
+                blockList.innerHTML = '';
+                broughtList.innerHTML = '';
+                getTopProducts('wet-press').forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span>${item.name}</span><span class="product-qty">${item.quantity}</span>`;
+                    wetList.appendChild(li);
+                });
+                getTopProducts('block-plant').forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span>${item.name}</span><span class="product-qty">${item.quantity}</span>`;
+                    blockList.appendChild(li);
+                });
+                getTopProducts('brought-in').forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span>${item.name}</span><span class="product-qty">${item.quantity}</span>`;
+                    broughtList.appendChild(li);
+                });
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            const workspace = document.getElementById('workspace');
+            workspace.addEventListener('click', function(e) {
+                if (isAddMode && e.target === this) {
+                    const img = document.getElementById('backgroundImage');
+                    const rect = img.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    showAddForm(x, y);
+                }
+            });
+            document.getElementById('overlay').addEventListener('click', hideAddForm);
+        }
+
+        // Close all tooltips when clicking outside
+        document.addEventListener('click', function(e) {
+            document.querySelectorAll('.stock-marker.tooltip-locked').forEach(m => m.classList.remove('tooltip-locked'));
+        });
+
+        // Initialize on load
+        window.addEventListener('load', init);
+
+        // --- Financials logic ---
+        // Normalize product names for matching
+        function normalizeName(name) {
+            return name.trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        function getProductCosts() {
+            const saved = localStorage.getItem('productCosts');
+            if (saved) return JSON.parse(saved);
+            return {};
+        }
+
+        function getProductCost(name) {
+            const costs = getProductCosts();
+            const norm = normalizeName(name);
+            // Try to find a normalized match
+            for (const key in costs) {
+                if (normalizeName(key) === norm) {
+                    return costs[key];
+                }
+            }
+            return 0;
+        }
+
+        function formatPounds(val) {
+            return '£' + Number(val).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function getSiteStockValue() {
+            return stockItems.reduce((sum, item) => sum + (item.quantity * getProductCost(item.name)), 0);
+        }
+
+        function getTopByValue(n = 6) {
+            return [...stockItems]
+                .map(item => ({ ...item, value: item.quantity * getProductCost(item.name) }))
+                .sort((a, b) => b.value - a.value)
+                .slice(0, n);
+        }
+
+        // --- Stock Movements ---
+        function getMovements() {
+            const saved = localStorage.getItem('stockMovements');
+            if (saved) return JSON.parse(saved);
+            return [];
+        }
+        function saveMovements(movements) {
+            localStorage.setItem('stockMovements', JSON.stringify(movements));
+        }
+        function logMovement(type, item, change) {
+            const movements = getMovements();
+            const now = new Date();
+            movements.unshift({
+                date: now.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                product: item.name,
+                change: change,
+                value: getProductCost(item.name) * change,
+                type: type
+            });
+            while (movements.length > 10) movements.pop();
+            saveMovements(movements);
+        }
+
+        // Patch updateQuantity and deleteItem to log movements
+        const origUpdateQuantity = updateQuantity;
+        updateQuantity = function(id, change) {
+            const item = stockItems.find(item => item.id === id);
+            if (item) {
+                logMovement('update', item, change);
+            }
+            origUpdateQuantity.apply(this, arguments);
+            updateFinancialsPanel();
+        };
+
+        const origDeleteItem = deleteItem;
+        deleteItem = function(id) {
+            if (confirm('Delete this stock pin?')) {
+                stockItems = stockItems.filter(item => item.id !== id);
+                saveData();
+                renderMarkers();
+                updateStats();
+            }
+        };
+
+        // Patch saveNewItem to log add
+        const origSaveNewItem = saveNewItem;
+        saveNewItem = function() {
+            // Save item first
+            origSaveNewItem.apply(this, arguments);
+            // Log add for the last item
+            if (stockItems.length > 0) {
+                const item = stockItems[stockItems.length - 1];
+                logMovement('add', item, item.quantity);
+            }
+            updateFinancialsPanel();
+        };
+
+        function updateFinancialsPanel() {
+            // Site Stock Value
+            document.getElementById('siteStockValue').textContent = formatPounds(getSiteStockValue());
+            // Top 6 by Value
+            const topList = document.getElementById('topByValue');
+            topList.innerHTML = '';
+            getTopByValue().forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${item.name}</span><span class="product-value">${formatPounds(item.value)}</span>`;
+                topList.appendChild(li);
+            });
+            // Recent Movements
+            const movList = document.getElementById('recentMovements');
+            movList.innerHTML = '';
+            getMovements().forEach(mov => {
+                const sign = mov.change > 0 ? '+' : '';
+                li = document.createElement('li');
+                li.innerHTML = `<span>${mov.date}<br><b>${mov.product}</b> <span style="color:${mov.change>0?'#4CAF50':'#f44336'}">${sign}${mov.change}</span></span><span class="product-value">${sign}${formatPounds(mov.value)}</span>`;
+                movList.appendChild(li);
+            });
+        }
+
+        // Call on load and after stats update
+        window.addEventListener('load', updateFinancialsPanel);
+        // Also call after stats update
+        const origUpdateStats = updateStats;
+        updateStats = function() {
+            origUpdateStats.apply(this, arguments);
+            updateFinancialsPanel();
+        };
+
+        function updateDebugPanel() {
+            // Map products
+            const mapNames = Array.from(new Set(stockItems.map(i => i.name)));
+            const costs = getProductCosts();
+            const debugMap = document.getElementById('debugMapProducts');
+            debugMap.innerHTML = '';
+            mapNames.forEach(name => {
+                const cost = getProductCost(name);
+                const li = document.createElement('li');
+                if (cost === undefined || cost === 0) {
+                    li.innerHTML = `<span style='color:#f44336;'>${name}</span><span class='product-value' style='color:#f44336;'>£0.00</span>`;
+                } else {
+                    li.innerHTML = `<span>${name}</span><span class='product-value'>${formatPounds(cost)}</span>`;
+                }
+                debugMap.appendChild(li);
+            });
+            // Cost table products
+            const debugCost = document.getElementById('debugCostProducts');
+            debugCost.innerHTML = '';
+            Object.keys(costs).sort().forEach(name => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${name}</span><span class='product-value'>${formatPounds(costs[name])}</span>`;
+                debugCost.appendChild(li);
+            });
+        }
+
+        // Patch updateFinancialsPanel to also update debug panel
+        const origUpdateFinancialsPanel = updateFinancialsPanel;
+        updateFinancialsPanel = function() {
+            origUpdateFinancialsPanel.apply(this, arguments);
+            updateDebugPanel();
+        };
+    </script>
+</body>
+</html> 

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financials - Visual Stock Manager</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .nav-btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .nav-btn:hover {
+            background: linear-gradient(135deg, #1976D2 0%, #2196F3 100%);
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto 0 auto;
+            background: rgba(0,0,0,0.92);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+            padding: 32px 32px 24px 32px;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 28px;
+            color: #4CAF50;
+        }
+        .instructions {
+            margin-bottom: 24px;
+            color: #bbb;
+            font-size: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 32px;
+        }
+        th, td {
+            padding: 10px 8px;
+            text-align: left;
+        }
+        th {
+            background: #222;
+            color: #4CAF50;
+            font-size: 16px;
+        }
+        tr.category-row th {
+            background: #111;
+            color: #fff;
+            font-size: 18px;
+            border-top: 2px solid #4CAF50;
+        }
+        tr:nth-child(even) td {
+            background: #181818;
+        }
+        tr:nth-child(odd) td {
+            background: #222;
+        }
+        td input[type="number"] {
+            width: 90px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #4CAF50;
+            background: #111;
+            color: #fff;
+            font-size: 15px;
+        }
+        td input[type="number"]:focus {
+            outline: none;
+            border-color: #2196F3;
+            background: #222;
+        }
+        .save-btn {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            float: right;
+        }
+        .save-btn:active {
+            background: #388E3C;
+        }
+        .success-msg {
+            color: #4CAF50;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        @media (max-width: 1000px) {
+            .container {
+                padding: 12px 2vw 12px 2vw;
+            }
+            table {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Financials</div>
+        <button class="nav-btn" onclick="window.location.href='index.html'">← Back to Map</button>
+    </div>
+    <div class="container">
+        <h2>Edit Product Costs</h2>
+        <div class="instructions">
+            Update the unit cost for each product below. All values are in pounds (£) and will be used for all financial calculations on the dashboard.<br>
+            <b>Changes are saved automatically.</b>
+        </div>
+        <div style="margin-bottom:18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+            <label for="mainCategoryFilter" style="font-size:15px;">Filter by Category:</label>
+            <select id="mainCategoryFilter" style="padding:7px 16px;border-radius:8px;background:#222;color:#fff;font-size:15px;">
+                <option value="all">All</option>
+                <option value="wet-press">Wet Press</option>
+                <option value="block-plant">Block Plant</option>
+                <option value="brought-in">Brought In</option>
+                <option value="custom">Custom/Other</option>
+            </select>
+            <input id="productSearch" type="text" placeholder="Search products..." style="padding:7px 16px;border-radius:8px;background:#222;color:#fff;font-size:15px;border:1px solid #4CAF50;min-width:200px;" />
+        </div>
+        <form id="costForm">
+            <table id="costTable">
+                <!-- Table will be populated by JS -->
+            </table>
+        </form>
+        <div class="success-msg" id="successMsg" style="display:none;">Costs updated!</div>
+    </div>
+    <script>
+        // Product cost data (initial, can be edited)
+        const initialCosts = {
+            // Wet Press
+            'Flat Top Edging 50x200x914': 1.39,
+            'Standard 900x600x50 Natural': 1.60,
+            'Standard 600x600x50 Natural': 2.29,
+            'Standard 450x450x50 Natural Square Edge': 1.37,
+            'Standard 450x450x50 Natural Chamfered': 1.37,
+            '125x255 Half Battered Kerb': 1.85,
+            '125x255 Bullnosed Kerb': 1.85,
+            '125x150 Bullnosed Kerb': 1.65,
+            'Pendle 450x450x32 Buff': 1.42,
+            'Terralis 450x450x32 Natural': 1.42,
+            'Terralis 450x450x32 Buff': 1.42,
+            'Pendle 600x600x38 Natural': 2.84,
+            'Pendle 600x600x38 Buff': 2.84,
+            'Terralis 600x600x38 Natural': 2.84,
+            'Terralis 600x600x38 Buff': 2.84,
+            'Richmond 450x450x32 Natural': 1.42,
+            'Richmond 450x450x32 Buff': 1.42,
+            'Richmond 600x600x38 Natural': 2.84,
+            'Richmond 600x600x38 Buff': 2.84,
+            'Blister 400x400x50 Buff': 2.93,
+            'Blister 400x400x50 Red': 2.93,
+            'Blister 400x400x65 Natural': 1.42,
+            'Blister 400x400x65 Buff': 1.42,
+            'Blister 400x400x65 Red': 1.42,
+            'Ryton Riven Grey 450x450x32': 1.42,
+            'Ryton Riven Buff 450x450x32': 1.42,
+            'Stretton Smth Grey 450x450x32': 1.42,
+            'Stretton Smth Buff 450x450x32': 1.42,
+            // Block Plant
+            'Round Top Edging 50x200x900': 0.54,
+            'Round Top Edging 75x230x900': 0.00,
+            'Pavedrive Natural 50mm': 4.54,
+            'Pavedrive Charcoal 50mm': 4.54,
+            'Pavedrive Brindle 50mm': 4.54,
+            'Pavedrive BOchre 50mm': 4.54,
+            'Avenu Charcoal Small 50mm': 5.27,
+            'Avenu Charcoal Med 50mm': 5.27,
+            'Avenu Charcoal Large 50mm': 5.27,
+            'Avenu BOchre Small 50mm': 5.27,
+            'Avenu BOchre Medium 50mm': 5.27,
+            'Avenu BOchre Large 50mm': 5.27,
+            'Avenu Forest Blend Sm 50mm': 5.27,
+            'Avenu Forest Blend Med 50mm': 5.27,
+            'Avenu Forest Blend Lge 50mm': 5.27,
+            'Standard CBP 200x100x50 Brindle': 4.54,
+            'Standard CBP 200x100x50 Charcoal': 4.54,
+            'Standard CBP 200x100x50 Bracken': 4.54,
+            'Standard CBP 200x100x50 Natural': 4.54,
+            'Savanna 240x160x50 Traditional': 5.27,
+            'Savanna 160x160x50 Traditional': 5.27,
+            'Savanna 120x160x50 Traditional': 5.27,
+            'Savanna 240x160x50 Pennant Grey': 5.27,
+            'Savanna 160x160x50 Pennant Grey': 5.27,
+            'Savanna 120x160x50 Pennant Grey': 5.27,
+            'Savanna 240x160x50 Autumn': 5.27,
+            'Savanna 160x160x50 Autumn': 5.27,
+            'Savanna 120x160x50 Autumn': 5.27,
+            'Savanna 240x160x50 Charcoal': 5.27,
+            'Savanna 160x160x50 Charcoal': 5.27,
+            'Savanna 120x160x50 Charcoal': 5.27,
+            'Keyblok 200x100x60 Natural': 4.72,
+            'Keyblok 200x100x60 Charcoal': 4.72,
+            'Keyblok 200x100x60 Buff': 4.72,
+            'Keyblok 200x100x60 Brindle': 4.72,
+            'Keyblok 200x100x60 Burnt Ochre': 4.72,
+            'Keyblok 200x100x60 Bracken': 4.72,
+            'Keyblok Pencil Edge 200x100x60 Charcoal': 4.72,
+            'Priora 200x100x60 Natural': 5.15,
+            'Priora 200x100x60 Charcoal': 5.15,
+            'Priora 200x100x60 Buff': 5.15,
+            'Priora 200x100x60 Brindle': 5.15,
+            'Priora 200x100x60 Burnt Ochre': 5.15,
+            'Priora 200x100x60 Bracken': 5.15,
+            'Keyblok 200x100x80 Natural': 5.12,
+            'Keyblok 200x100x80 Charcoal': 5.12,
+            'Keyblok 200x100x80 Buff': 5.12,
+            'Keyblok 200x100x80 Brindle': 5.12,
+            'Keyblok 200x100x80 Burnt Ochre': 5.12,
+            'Keyblok 200x100x80 Bracken': 5.12,
+            'Priora 200x100x80 Natural': 5.58,
+            'Priora 200x100x80 Charcoal': 5.58,
+            'Priora 200x100x80 Buff': 5.58,
+            'Priora 200x100x80 Brindle': 5.58,
+            'Priora 200x100x80 Burnt Ochre': 5.58,
+            'Priora 200x100x80 Bracken': 5.58
+        };
+
+        // Product categories
+        const categories = [
+            { name: 'Wet Press', key: 'wet-press', color: '#4CAF50',
+                products: [
+                    'Flat Top Edging 50x200x914',
+                    'Standard 900x600x50 Natural',
+                    'Standard 600x600x50 Natural',
+                    'Standard 450x450x50 Natural Square Edge',
+                    'Standard 450x450x50 Natural Chamfered',
+                    '125x255 Half Battered Kerb',
+                    '125x255 Bullnosed Kerb',
+                    '125x150 Bullnosed Kerb',
+                    'Pendle 450x450x32 Buff',
+                    'Terralis 450x450x32 Natural',
+                    'Terralis 450x450x32 Buff',
+                    'Pendle 600x600x38 Natural',
+                    'Pendle 600x600x38 Buff',
+                    'Terralis 600x600x38 Natural',
+                    'Terralis 600x600x38 Buff',
+                    'Richmond 450x450x32 Natural',
+                    'Richmond 450x450x32 Buff',
+                    'Richmond 600x600x38 Natural',
+                    'Richmond 600x600x38 Buff',
+                    'Blister 400x400x50 Buff',
+                    'Blister 400x400x50 Red',
+                    'Blister 400x400x65 Natural',
+                    'Blister 400x400x65 Buff',
+                    'Blister 400x400x65 Red',
+                    'Ryton Riven Grey 450x450x32',
+                    'Ryton Riven Buff 450x450x32',
+                    'Stretton Smth Grey 450x450x32',
+                    'Stretton Smth Buff 450x450x32'
+                ]
+            },
+            { name: 'Block Plant', key: 'block-plant', color: '#2196F3',
+                products: [
+                    'Round Top Edging 50x200x900',
+                    'Round Top Edging 75x230x900',
+                    'Pavedrive Natural 50mm',
+                    'Pavedrive Charcoal 50mm',
+                    'Pavedrive Brindle 50mm',
+                    'Pavedrive BOchre 50mm',
+                    'Avenu Charcoal Small 50mm',
+                    'Avenu Charcoal Med 50mm',
+                    'Avenu Charcoal Large 50mm',
+                    'Avenu BOchre Small 50mm',
+                    'Avenu BOchre Medium 50mm',
+                    'Avenu BOchre Large 50mm',
+                    'Avenu Forest Blend Sm 50mm',
+                    'Avenu Forest Blend Med 50mm',
+                    'Avenu Forest Blend Lge 50mm',
+                    'Standard CBP 200x100x50 Brindle',
+                    'Standard CBP 200x100x50 Charcoal',
+                    'Standard CBP 200x100x50 Bracken',
+                    'Standard CBP 200x100x50 Natural',
+                    'Savanna 240x160x50 Traditional',
+                    'Savanna 160x160x50 Traditional',
+                    'Savanna 120x160x50 Traditional',
+                    'Savanna 240x160x50 Pennant Grey',
+                    'Savanna 160x160x50 Pennant Grey',
+                    'Savanna 120x160x50 Pennant Grey',
+                    'Savanna 240x160x50 Autumn',
+                    'Savanna 160x160x50 Autumn',
+                    'Savanna 120x160x50 Autumn',
+                    'Savanna 240x160x50 Charcoal',
+                    'Savanna 160x160x50 Charcoal',
+                    'Savanna 120x160x50 Charcoal',
+                    'Keyblok 200x100x60 Natural',
+                    'Keyblok 200x100x60 Charcoal',
+                    'Keyblok 200x100x60 Buff',
+                    'Keyblok 200x100x60 Brindle',
+                    'Keyblok 200x100x60 Burnt Ochre',
+                    'Keyblok 200x100x60 Bracken',
+                    'Keyblok Pencil Edge 200x100x60 Charcoal',
+                    'Priora 200x100x60 Natural',
+                    'Priora 200x100x60 Charcoal',
+                    'Priora 200x100x60 Buff',
+                    'Priora 200x100x60 Brindle',
+                    'Priora 200x100x60 Burnt Ochre',
+                    'Priora 200x100x60 Bracken',
+                    'Keyblok 200x100x80 Natural',
+                    'Keyblok 200x100x80 Charcoal',
+                    'Keyblok 200x100x80 Buff',
+                    'Keyblok 200x100x80 Brindle',
+                    'Keyblok 200x100x80 Burnt Ochre',
+                    'Keyblok 200x100x80 Bracken',
+                    'Priora 200x100x80 Natural',
+                    'Priora 200x100x80 Charcoal',
+                    'Priora 200x100x80 Buff',
+                    'Priora 200x100x80 Brindle',
+                    'Priora 200x100x80 Burnt Ochre',
+                    'Priora 200x100x80 Bracken'
+                ]
+            },
+            { name: 'Brought In', key: 'brought-in', color: '#9C27B0',
+                products: [
+                    'Custom Brought-In Item',
+                    'Special Order Product',
+                    'Third-Party Stock'
+                ]
+            }
+        ];
+
+        // Get all products in use on the map (from localStorage)
+        function getMapProducts() {
+            const saved = localStorage.getItem('visualStockData');
+            if (!saved) return [];
+            return Array.from(new Set(JSON.parse(saved).map(i => i.name)));
+        }
+
+        // Load costs from localStorage or use initial
+        function getCosts() {
+            const saved = localStorage.getItem('productCosts');
+            if (saved) return JSON.parse(saved);
+            return { ...initialCosts };
+        }
+        function saveCosts(costs) {
+            localStorage.setItem('productCosts', JSON.stringify(costs));
+        }
+
+        // Get all products: master + in use, no duplicates
+        function getAllProducts() {
+            const master = categories.flatMap(cat => cat.products.map(p => ({ name: p, category: cat.key })));
+            const mapProducts = getMapProducts().map(name => ({ name, category: getCategoryForProduct(name) }));
+            const all = [...master, ...mapProducts];
+            // Remove duplicates by name
+            const seen = new Set();
+            return all.filter(p => {
+                if (seen.has(p.name)) return false;
+                seen.add(p.name);
+                return true;
+            });
+        }
+
+        function getCategoryForProduct(name) {
+            for (const cat of categories) {
+                if (cat.products.includes(name)) return cat.key;
+            }
+            return 'custom';
+        }
+
+        // Render table with filter and search
+        function renderTable() {
+            const costs = getCosts();
+            const table = document.getElementById('costTable');
+            const filter = document.getElementById('mainCategoryFilter').value;
+            const search = document.getElementById('productSearch').value.trim().toLowerCase();
+            const allProducts = getAllProducts();
+            table.innerHTML = '';
+            // Group by category
+            categories.concat([{ name: 'Custom/Other', key: 'custom', color: '#bbb', products: [] }]).forEach(cat => {
+                // Filter products by category and search
+                const products = allProducts.filter(p => {
+                    if (filter !== 'all' && p.category !== filter) return false;
+                    if (cat.key !== p.category) return false;
+                    if (search && !p.name.toLowerCase().includes(search)) return false;
+                    return true;
+                });
+                if (products.length === 0) return;
+                const catRow = document.createElement('tr');
+                catRow.className = 'category-row';
+                const th = document.createElement('th');
+                th.colSpan = 3;
+                th.textContent = cat.name;
+                th.style.color = cat.color;
+                catRow.appendChild(th);
+                table.appendChild(catRow);
+                // Header row
+                const headerRow = document.createElement('tr');
+                headerRow.innerHTML = '<th>Product</th><th>Unit Cost (£)</th><th></th>';
+                table.appendChild(headerRow);
+                products.forEach(productObj => {
+                    const product = productObj.name;
+                    const inUse = getMapProducts().includes(product);
+                    const tr = document.createElement('tr');
+                    let highlight = '';
+                    if (inUse && (!costs[product] || costs[product] === 0)) highlight = 'style="background:#2a1818;color:#f44336;"';
+                    tr.innerHTML = `
+                        <td ${highlight}>${product}${inUse ? ' <span style=\'color:#4CAF50;font-size:12px;\'>(in use)</span>' : ''}</td>
+                        <td><input type="number" min="0" step="0.01" value="${costs[product] !== undefined ? costs[product].toFixed(2) : ''}" data-product="${product}" /></td>
+                        <td></td>
+                    `;
+                    table.appendChild(tr);
+                });
+            });
+        }
+
+        // Save on input change
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.matches('input[type="number"][data-product]')) {
+                const product = e.target.getAttribute('data-product');
+                let value = parseFloat(e.target.value);
+                if (isNaN(value) || value < 0) value = 0;
+                const costs = getCosts();
+                costs[product] = parseFloat(value.toFixed(2));
+                saveCosts(costs);
+                // Show success message
+                const msg = document.getElementById('successMsg');
+                msg.style.display = 'block';
+                setTimeout(() => { msg.style.display = 'none'; }, 1200);
+            }
+        });
+
+        // Filter and search events
+        document.getElementById('mainCategoryFilter').addEventListener('change', renderTable);
+        document.getElementById('productSearch').addEventListener('input', renderTable);
+
+        // Initial render
+        renderTable();
+    </script>
+</body>
+</html> 
