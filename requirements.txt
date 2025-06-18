@@ -1,0 +1,12 @@
+# Jimmy's Visual Stock Manager requirements
+# This is a static web app. No Python or backend dependencies required.
+# To serve locally, you can use any static file server, e.g.:
+#
+# Python 3.x:
+#   python -m http.server
+#
+# Node.js (optional):
+#   npm install -g serve
+#   serve .
+#
+# No requirements needed for production use in a browser. 

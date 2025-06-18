@@ -1,11 +1,23 @@
+<!--
+Jimmy's Visual Stock Manager
+A visual, interactive stock management tool for site maps.
+Author: Jimmy (Crawford1982)
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!--
+    Main HTML head: Sets up meta, favicon, title, and includes all CSS for layout and theming.
+    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jimmy's Visual Stock Manager</title>
+    <!-- Favicon: Lightning up/down SVG icon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='8' y='28' width='48' height='8' rx='2' fill='%23bbb'/%3E%3Cpolygon points='32,8 40,32 28,32 36,56' fill='%23FFD600' stroke='%23FFA000' stroke-width='2'/%3E%3Cpolygon points='24,40 32,56 40,40' fill='%2300C853'/%3E%3Cpolygon points='24,24 32,8 40,24' fill='%23D50000'/%3E%3C/svg%3E">
     <style>
+        /*
+        Global CSS: Resets, layout, theming, and custom styles for all UI elements.
+        */
         * {
             margin: 0;
             padding: 0;
@@ -777,15 +789,22 @@
     </style>
 </head>
 <body>
+    <!--
+    Scrolling marquee for branding and pride!
+    -->
     <div class="marquee-bar">
         <div class="marquee-text">Jimmy's Visual Stock Manager</div>
     </div>
+    <!--
+    Header: Contains app title, controls, and stats.
+    -->
     <div class="header">
         <div class="title">
             <span>📍</span>
             <span>Visual Stock Manager</span>
         </div>
         <div class="controls">
+            <!-- Upload, mode, search, filter, export, clear, and financials controls -->
             <button class="btn upload-btn" onclick="document.getElementById('fileInput').click()">
                 📁 Upload Site Map
             </button>
@@ -811,6 +830,7 @@
             </button>
         </div>
         <div class="stats">
+            <!-- Live stats for total, category counts -->
             <div class="stat">
                 <span class="stat-label">Total:</span>
                 <span class="stat-value" id="totalItems">0</span>
@@ -829,13 +849,19 @@
             </div>
         </div>
     </div>
-
+    <!--
+    Main workspace: Shows the site map and all pins.
+    -->
     <div class="workspace" id="workspace">
         <img class="background-image" id="backgroundImage" src="sitemap.png" style="display: block;">
     </div>
-
+    <!--
+    Overlay for modal forms.
+    -->
     <div class="overlay" id="overlay"></div>
-
+    <!--
+    Add pin form modal.
+    -->
     <div class="add-item-form" id="addItemForm">
         <div class="form-header">📍 Add Stock Pin</div>
         <div class="form-group">
@@ -861,7 +887,9 @@
             <button class="form-btn btn-save" onclick="saveNewItem()">Save Pin</button>
         </div>
     </div>
-
+    <!--
+    Quick guide for users.
+    -->
     <div class="instructions">
         <h3>Quick Guide</h3>
         <ul>
@@ -873,8 +901,9 @@
             <li>Zoom: Use controls or mouse wheel</li>
         </ul>
     </div>
-
-    <!-- Side panel for top products -->
+    <!--
+    Side panel: Top products by category.
+    -->
     <div class="side-panel" id="sidePanel">
         <div class="top-products-category">
             <div class="top-products-header wet">🟢 Top Wet Press</div>
@@ -889,8 +918,9 @@
             <ul id="topBroughtIn"></ul>
         </div>
     </div>
-
-    <!-- Right panel for financials -->
+    <!--
+    Right panel: Financials, top by value, recent movements, debug.
+    -->
     <div class="right-panel" id="rightPanel">
         <div class="fin-section">
             <div class="fin-header">💷 Site Stock Value</div>
@@ -912,13 +942,17 @@
             <ul class="fin-list" id="debugCostProducts"></ul>
         </div>
     </div>
-
     <script>
+        //
+        // Main JavaScript logic for Jimmy's Visual Stock Manager
+        //
+        // - Handles data loading/saving, pin rendering, drag/drop, filtering, financials, and UI events.
+        //
         let stockItems = [];
         let isAddMode = false;
         let addingAtPosition = null;
 
-        // Product catalog
+        // Product catalog: Used for dropdowns and category grouping.
         const productLists = {
             'wet-press': [
                 'Flat Top Edging 50x200x914',
@@ -1017,14 +1051,14 @@
             ]
         };
 
-        // Initialize
+        // Initialize app: Loads data, sets up UI, and event listeners.
         function init() {
             loadData();
             updateProductDropdown();
             setupEventListeners();
         }
 
-        // Load saved data
+        // Load saved data from localStorage.
         function loadData() {
             const saved = localStorage.getItem('visualStockData');
             if (saved) {
@@ -1041,12 +1075,12 @@
             }
         }
 
-        // Save data
+        // Save data to localStorage.
         function saveData() {
             localStorage.setItem('visualStockData', JSON.stringify(stockItems));
         }
 
-        // Export data
+        // Export data as JSON.
         function exportData() {
             const dataStr = JSON.stringify(stockItems, null, 2);
             const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
@@ -1059,7 +1093,7 @@
             linkElement.click();
         }
 
-        // Load background image
+        // Load background image from file input.
         function loadBackgroundImage(event) {
             const file = event.target.files[0];
             if (file) {
@@ -1074,7 +1108,7 @@
             }
         }
 
-        // Toggle add mode
+        // Toggle add pin mode.
         function toggleMode() {
             isAddMode = !isAddMode;
             const btn = document.getElementById('modeBtn');
@@ -1091,7 +1125,7 @@
             }
         }
 
-        // Update product dropdown
+        // Update product dropdown based on selected category.
         function updateProductDropdown() {
             const category = document.getElementById('itemCategory').value;
             const productSelect = document.getElementById('itemProduct');
@@ -1108,7 +1142,7 @@
             }
         }
 
-        // Show add form with animation
+        // Show add pin form at clicked position.
         function showAddForm(x, y) {
             addingAtPosition = { x, y };
             const form = document.getElementById('addItemForm');
@@ -1122,7 +1156,7 @@
             }, 300);
         }
 
-        // Hide add form
+        // Hide add pin form.
         function hideAddForm() {
             const form = document.getElementById('addItemForm');
             const overlay = document.getElementById('overlay');
@@ -1135,7 +1169,7 @@
             }, 300);
         }
 
-        // Save new item
+        // Save new pin to stockItems.
         function saveNewItem() {
             const selectedProduct = document.getElementById('itemProduct').value;
             const quantity = parseInt(document.getElementById('itemQuantity').value) || 0;
@@ -1166,7 +1200,7 @@
             }
         }
 
-        // Render all markers
+        // Render all pins (markers) on the map.
         function renderMarkers() {
             document.querySelectorAll('.stock-marker').forEach(marker => marker.remove());
             const categoryFilter = document.getElementById('categoryFilter').value;
@@ -1280,13 +1314,13 @@
             });
         }
 
-        // Get stock status text
+        // Get stock status text for tooltip.
         function getStockStatus(item) {
             if (item.quantity === 0) return '❌ Out of Stock';
             return '✅ In Stock';
         }
 
-        // Update quantity
+        // Update quantity for a pin (not used, but kept for future extension).
         function updateQuantity(id, change) {
             const item = stockItems.find(item => item.id === id);
             if (item) {
@@ -1296,7 +1330,7 @@
             updateFinancialsPanel();
         }
 
-        // Delete item
+        // Delete a pin from the map.
         function deleteItem(id) {
             if (confirm('Delete this stock pin?')) {
                 stockItems = stockItems.filter(item => item.id !== id);
@@ -1306,7 +1340,7 @@
             }
         }
 
-        // Clear all items
+        // Clear all pins from the map.
         function clearAllItems() {
             const confirmText = prompt('⚠️ WARNING: This will delete ALL stock pins!\n\nType "DELETE ALL" to confirm:');
             if (confirmText === 'DELETE ALL') {
@@ -1318,7 +1352,7 @@
             }
         }
 
-        // Filter by category or search
+        // Filter pins by category or search.
         function filterByCategory() {
             renderMarkers();
             updateStats(); // Also update left panel
@@ -1330,7 +1364,7 @@
             });
         }
 
-        // Update statistics
+        // Update stats and left panel based on current filter/search.
         function updateStats() {
             const categoryFilter = document.getElementById('categoryFilter').value;
             const search = document.getElementById('pinSearch') ? document.getElementById('pinSearch').value.trim().toLowerCase() : '';
@@ -1383,7 +1417,7 @@
             }
         }
 
-        // Setup event listeners
+        // Setup all event listeners for UI and drag/drop.
         function setupEventListeners() {
             const workspace = document.getElementById('workspace');
             workspace.addEventListener('click', function(e) {
